@@ -89,19 +89,19 @@ export default class App extends React.Component {
   }
 
   masterRequest = () => {
-    axios({
-      method: 'POST',
-      url: `${this.state.address}/state`,
-      body: {
-       speed: this.state.speed,
-      }
-    })
+    axios.post(`${this.state.address}/state`, { speed: this.state.speed })
       .then(() => {
         Toast.show({ text: 'Success', duration: 1500 })
       })
       .catch(err => {
-        console.log('error', err)
-        Toast.show({ text: 'Error', duration: 1500 })
+        axios({
+          method: 'GET',
+          url: `${this.state.address}/state`
+        }).then(response => {
+          console.log('error', JSON.stringify(err))
+          this.setState({ speed: response.data.speed })
+          Toast.show({ text: 'Error', duration: 1500 })
+        })
       })
   }
 
