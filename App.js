@@ -1,6 +1,6 @@
 import React from 'react';
 import { Font, AppLoading } from 'expo'
-import { StyleSheet, Slider, AsyncStorage } from 'react-native';
+import { StyleSheet, Slider, AsyncStorage, View } from 'react-native';
 import {
   Root,
   Container,
@@ -25,6 +25,7 @@ export default class App extends React.Component {
     loading: true,
     address: 'http://10.54.54.234:6543',
     speed: 0,
+    actualSpeed: 0,
   }
 
   async componentWillMount() {
@@ -43,7 +44,10 @@ export default class App extends React.Component {
           method: 'GET',
           url: `${address}/state`
         })
-          .then(response => this.setState({ speed: response.data.speed, connected: true }))
+          .then(response => {
+            this.setState({ actualSpeed: response.data.speed, speed: response.data.speed, connected: true })
+            setInterval(this.getActualSpeed, 1000)
+          })
           .catch(err => {
             console.log('Connect error', err)
             Toast.show({ text: 'Old address outdated', duration: 1500 })
@@ -53,6 +57,18 @@ export default class App extends React.Component {
       console.log('Storage error', error)
       Toast.show({ text: 'AsyncStorage error', duration: 1500 })
     }
+  }
+
+  getActualSpeed = () => {
+    axios({
+      method: 'GET',
+      url: `${this.state.address}/state`
+    })
+      .then(response => this.setState({ actualSpeed: response.data.speed }))
+      .catch(err => {
+        this.setState({ connected: false })
+        Toast.show({ text: 'Old address outdated', duration: 1500 })
+      })
   }
 
   onIPChange = (value) => {
@@ -65,7 +81,7 @@ export default class App extends React.Component {
       url: `${this.state.address}/state`,
     })
       .then(response => {
-        this.setState({ speed: response.data.speed, connected: true }, async () => {
+        this.setState({ speed: response.data.speed, actualSpeed: response.data.speed, connected: true }, async () => {
           try {
             await AsyncStorage.setItem('address', this.state.address)
           } catch (error) {
@@ -75,13 +91,20 @@ export default class App extends React.Component {
         })
       })
       .catch(err => {
-        console.log('err', err)
         Toast.show({ text: 'Connection error', duration: 1500 })
       })
   }
 
   onSpeedChange = (value) => {
     this.setState({ speed: Math.floor(value) }, this.masterRequest)
+  }
+
+  handleIncrease = () => {
+    this.setState(({ speed }) => ({ speed: speed == 100 ? 100 : speed + 1}), this.masterRequest)
+  }
+
+  handleDecrease = () => {
+    this.setState(({ speed }) => ({ speed: speed == -100 ? -100 : speed - 1}), this.masterRequest)
   }
 
   onStop = () => {
@@ -132,7 +155,7 @@ export default class App extends React.Component {
       <Content>
         <Form style={styles.form}>
           <Text style={{ marginBottom: 10 }}>
-            Speed (-100 to 100) [Current: {this.state.speed}]
+            Speed control [Current: {this.state.actualSpeed}, Target: {this.state.speed}]
           </Text>
           <Slider
             value={this.state.speed}
@@ -140,6 +163,8 @@ export default class App extends React.Component {
             maximumValue={100}
             onSlidingComplete={this.onSpeedChange}
           />
+          <Button style={{ marginTop: 10 }} full onPress={this.handleDecrease}><Text>-</Text></Button>
+          <Button style={{ marginTop: 10 }} full onPress={this.handleIncrease}><Text>+</Text></Button>
           <Button
             full
             danger
@@ -191,5 +216,5 @@ const styles = StyleSheet.create({
   },
   connectButton: {
     marginTop: 10
-  }
+  },
 });
